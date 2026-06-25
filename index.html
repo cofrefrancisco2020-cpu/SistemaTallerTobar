@@ -12,7 +12,28 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <aside class="sidebar">
+    <section class="login-screen" id="loginScreen" hidden>
+      <form class="login-card" id="loginForm" autocomplete="off">
+        <img src="assets/logo-tobar.jpeg" alt="Logo Tobar" />
+        <p class="eyebrow">Acceso interno</p>
+        <h1>Historial Taller Tobar</h1>
+        <p class="login-copy">Ingresa con el usuario y clave configurados en Vercel para revisar registros del taller.</p>
+
+        <label>
+          Usuario
+          <input id="loginUser" type="text" autocomplete="username" required />
+        </label>
+        <label>
+          Contraseña
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button primary" type="submit">Entrar al sistema</button>
+        <p id="loginStatus" class="login-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <aside class="sidebar app-protected" hidden>
       <div class="brand">
         <img src="assets/logo-tobar.jpeg" alt="Logo Tobar" />
         <div>
@@ -34,13 +55,16 @@
       </div>
     </aside>
 
-    <main class="app-shell">
+    <main class="app-shell app-protected" hidden>
       <header class="topbar">
         <div>
           <p class="eyebrow">Sociedad Comercial Mecánica Tobar Ltda</p>
           <h1>Gestión de vehículos y trabajos</h1>
         </div>
-        <button class="button secondary" type="button" id="newRecordTop">Nuevo ingreso</button>
+        <div class="topbar-actions">
+          <button class="button secondary" type="button" id="newRecordTop">Nuevo ingreso</button>
+          <button class="button ghost" type="button" id="logoutButton">Salir</button>
+        </div>
       </header>
 
       <section class="dashboard-grid" id="dashboard" aria-label="Resumen del taller">

@@ -29,21 +29,21 @@ La tabla se crea sola la primera vez que el sistema llama a `/api/records`.
 
 ## Protección del sistema interno
 
-El sistema interno está protegido con autenticación básica si configuras estas variables en Vercel:
+El sistema interno muestra una pantalla de ingreso si configuras estas variables en Vercel:
 
 - `TALLER_USER`
 - `TALLER_PASSWORD`
 
-El archivo que activa esta protección es `middleware.js`. Debe estar en la raíz del repositorio, al mismo nivel que `index.html`.
+El archivo que valida esta protección es `api/auth.js`.
 
-La protección aplica a todo el sistema:
+La protección se aplica a los registros del sistema:
 
-- `/`
-- `/api/records`
+- La interfaz pide usuario y contraseña al abrir.
+- `/api/records` no entrega ni guarda registros sin una sesión activa.
 
 ## Peso estimado
 
-Los registros del taller son texto y pesan muy poco. Miles de registros normalmente ocupan pocos MB. Las imágenes principales están optimizadas en WebP para reducir el peso del deploy.
+Los registros del taller son texto y pesan muy poco. Miles de registros normalmente ocupan pocos MB. Las imágenes del sistema quedan en `assets/` para reemplazarlas fácilmente.
 
 ## Sobre guardar datos
 

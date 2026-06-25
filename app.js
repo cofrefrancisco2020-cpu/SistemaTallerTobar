@@ -1,20 +1,30 @@
 const STORAGE_KEY = "historial-taller-tobar:v1";
 const API_ENDPOINT = "/api/records";
+const AUTH_ENDPOINT = "/api/auth";
 
 const state = {
   records: [],
   selectedPatent: "",
   search: "",
   storageMode: "checking",
+  authRequired: false,
+  appStarted: false,
 };
 
 const els = {
+  protectedAreas: document.querySelectorAll(".app-protected"),
+  loginScreen: document.querySelector("#loginScreen"),
+  loginForm: document.querySelector("#loginForm"),
+  loginUser: document.querySelector("#loginUser"),
+  loginPassword: document.querySelector("#loginPassword"),
+  loginStatus: document.querySelector("#loginStatus"),
   form: document.querySelector("#recordForm"),
   recordId: document.querySelector("#recordId"),
   formTitle: document.querySelector("#formTitle"),
   formStatus: document.querySelector("#formStatus"),
   clearForm: document.querySelector("#clearForm"),
   newRecordTop: document.querySelector("#newRecordTop"),
+  logoutButton: document.querySelector("#logoutButton"),
   searchForm: document.querySelector("#searchForm"),
   searchPatent: document.querySelector("#searchPatent"),
   vehicleList: document.querySelector("#vehicleList"),
@@ -68,7 +78,13 @@ const recordsRepository = {
       const response = await fetch(API_ENDPOINT, {
         headers: { Accept: "application/json" },
         cache: "no-store",
+        credentials: "same-origin",
       });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return [];
+      }
 
       if (!response.ok) throw new Error("API no disponible");
 
@@ -89,7 +105,13 @@ const recordsRepository = {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ record }),
+        credentials: "same-origin",
       });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        throw new Error("Debes ingresar nuevamente.");
+      }
 
       if (!response.ok) {
         const payload = await safeJson(response);
@@ -104,7 +126,13 @@ const recordsRepository = {
       const response = await fetch(`${API_ENDPOINT}?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
       });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        throw new Error("Debes ingresar nuevamente.");
+      }
 
       if (!response.ok) {
         const payload = await safeJson(response);
@@ -119,7 +147,13 @@ const recordsRepository = {
       const response = await fetch(`${API_ENDPOINT}?patent=${encodeURIComponent(patent)}`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
       });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        throw new Error("Debes ingresar nuevamente.");
+      }
 
       if (!response.ok) {
         const payload = await safeJson(response);
@@ -141,6 +175,92 @@ async function safeJson(response) {
   } catch (error) {
     return {};
   }
+}
+
+function showLogin(message = "") {
+  if (!els.loginScreen) return;
+
+  els.loginScreen.hidden = false;
+  els.protectedAreas.forEach((area) => {
+    area.hidden = true;
+  });
+  els.loginStatus.textContent = message;
+  els.loginPassword.value = "";
+  setTimeout(() => els.loginUser.focus(), 0);
+}
+
+function showApp() {
+  if (els.loginScreen) els.loginScreen.hidden = true;
+  els.protectedAreas.forEach((area) => {
+    area.hidden = false;
+  });
+  if (els.logoutButton) els.logoutButton.hidden = !state.authRequired;
+}
+
+function handleUnauthorized() {
+  state.authRequired = true;
+  showLogin("Sesión vencida. Ingresa nuevamente para continuar.");
+}
+
+async function checkAuth() {
+  try {
+    const response = await fetch(AUTH_ENDPOINT, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+
+    if (!response.ok) throw new Error("Auth no disponible");
+    return await response.json();
+  } catch (error) {
+    // Local previews without Vercel Functions keep working in localStorage mode.
+    return { authRequired: false, authenticated: true };
+  }
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  els.loginStatus.textContent = "Verificando acceso...";
+
+  try {
+    const response = await fetch(AUTH_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        user: els.loginUser.value.trim(),
+        password: els.loginPassword.value,
+      }),
+    });
+    const payload = await safeJson(response);
+
+    if (!response.ok) {
+      els.loginStatus.textContent = payload.error || "Usuario o contraseña incorrectos.";
+      return;
+    }
+
+    state.authRequired = Boolean(payload.authRequired);
+    showApp();
+    await startApp();
+  } catch (error) {
+    els.loginStatus.textContent = "No se pudo validar el acceso. Revisa el despliegue en Vercel.";
+  }
+}
+
+async function handleLogout() {
+  try {
+    await fetch(AUTH_ENDPOINT, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+  } catch (error) {
+    console.warn("No se pudo cerrar la sesión en servidor", error);
+  }
+
+  state.records = [];
+  state.selectedPatent = "";
+  showLogin("Sesión cerrada.");
 }
 
 function updateStorageMode(mode) {
@@ -604,25 +724,46 @@ function handleSearch(event) {
   render();
 }
 
-async function init() {
+async function startApp() {
   updateStorageMode("checking");
   state.records = await recordsRepository.load();
   fields.intakeDate.value = today();
 
-  els.form.addEventListener("submit", saveRecord);
-  els.clearForm.addEventListener("click", () => clearForm());
-  els.newRecordTop.addEventListener("click", () => {
-    clearForm();
-    document.querySelector("#nuevo-ingreso").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-  els.searchForm.addEventListener("submit", handleSearch);
-  els.searchPatent.addEventListener("input", (event) => {
-    state.search = event.target.value.trim();
-    renderVehicleList();
-  });
-  document.addEventListener("click", handleDelegatedAction);
+  if (!state.appStarted) {
+    els.form.addEventListener("submit", saveRecord);
+    els.clearForm.addEventListener("click", () => clearForm());
+    els.newRecordTop.addEventListener("click", () => {
+      clearForm();
+      document.querySelector("#nuevo-ingreso").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    els.logoutButton.addEventListener("click", handleLogout);
+    els.searchForm.addEventListener("submit", handleSearch);
+    els.searchPatent.addEventListener("input", (event) => {
+      state.search = event.target.value.trim();
+      renderVehicleList();
+    });
+    document.addEventListener("click", handleDelegatedAction);
+    state.appStarted = true;
+  }
 
   render();
+}
+
+async function init() {
+  if (els.loginForm) {
+    els.loginForm.addEventListener("submit", handleLogin);
+  }
+
+  const auth = await checkAuth();
+  state.authRequired = Boolean(auth.authRequired);
+
+  if (state.authRequired && !auth.authenticated) {
+    showLogin();
+    return;
+  }
+
+  showApp();
+  await startApp();
 }
 
 init();
