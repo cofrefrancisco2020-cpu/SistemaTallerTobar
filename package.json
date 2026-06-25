@@ -1,0 +1,12 @@
+{
+  "name": "tobar-soluciones-auto",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/functions": "^2.2.13",
+    "@neondatabase/serverless": "^1.0.2"
+  }
+}

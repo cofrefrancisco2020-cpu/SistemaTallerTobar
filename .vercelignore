@@ -1,0 +1,3 @@
+.local-server.pid
+.env.local
+node_modules
