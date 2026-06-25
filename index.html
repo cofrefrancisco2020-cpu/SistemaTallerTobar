@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Sistema interno Historial Taller Tobar para registrar clientes, vehículos, trabajos y próximas mantenciones."
+    />
+    <title>Historial Taller Tobar</title>
+    <link rel="icon" href="assets/logo-tobar.jpeg" type="image/jpeg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/logo-tobar.jpeg" alt="Logo Tobar" />
+        <div>
+          <span>Sistema interno</span>
+          <strong>Historial Taller Tobar</strong>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Navegación principal">
+        <a href="#dashboard" class="is-active">Dashboard</a>
+        <a href="#nuevo-ingreso">Nuevo ingreso</a>
+        <a href="#vehiculos">Vehículos</a>
+        <a href="#mantenciones">Mantenciones</a>
+      </nav>
+
+      <div class="storage-note">
+        <span id="storageModeLabel">Conectando</span>
+        <p id="storageModeText">El sistema verificará si existe base de datos en Vercel.</p>
+      </div>
+    </aside>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Sociedad Comercial Mecánica Tobar Ltda</p>
+          <h1>Gestión de vehículos y trabajos</h1>
+        </div>
+        <button class="button secondary" type="button" id="newRecordTop">Nuevo ingreso</button>
+      </header>
+
+      <section class="dashboard-grid" id="dashboard" aria-label="Resumen del taller">
+        <article class="metric-card">
+          <span>Vehículos</span>
+          <strong id="vehiclesCount">0</strong>
+          <p>Patentes registradas</p>
+        </article>
+        <article class="metric-card">
+          <span>Clientes</span>
+          <strong id="clientsCount">0</strong>
+          <p>Contactos únicos</p>
+        </article>
+        <article class="metric-card">
+          <span>Trabajos</span>
+          <strong id="jobsCount">0</strong>
+          <p>Ingresos guardados</p>
+        </article>
+        <article class="metric-card accent">
+          <span>Próximas</span>
+          <strong id="upcomingCount">0</strong>
+          <p>Mantenciones sugeridas</p>
+        </article>
+      </section>
+
+      <section class="panel form-panel" id="nuevo-ingreso">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Nuevo ingreso</p>
+            <h2 id="formTitle">Registrar vehículo o trabajo</h2>
+          </div>
+          <button class="button ghost" type="button" id="clearForm">Limpiar</button>
+        </div>
+
+        <form id="recordForm" autocomplete="off">
+          <input type="hidden" id="recordId" />
+
+          <div class="form-section">
+            <h3>Cliente</h3>
+            <div class="form-grid">
+              <label>
+                Nombre cliente
+                <input id="clientName" type="text" placeholder="Ej: Juan Pérez" required />
+              </label>
+              <label>
+                Teléfono
+                <input id="clientPhone" type="tel" placeholder="+56 9 0000 0000" />
+              </label>
+              <label>
+                Correo
+                <input id="clientEmail" type="email" placeholder="cliente@correo.cl" />
+              </label>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Vehículo</h3>
+            <div class="form-grid">
+              <label>
+                Patente
+                <input id="patent" type="text" placeholder="Ej: ABCD12" required />
+              </label>
+              <label>
+                Marca
+                <input id="brandName" type="text" placeholder="Ej: Toyota" />
+              </label>
+              <label>
+                Modelo
+                <input id="modelName" type="text" placeholder="Ej: Hilux" />
+              </label>
+              <label>
+                Año
+                <input id="vehicleYear" type="number" min="1950" max="2100" placeholder="2020" />
+              </label>
+              <label>
+                Kilometraje actual
+                <input id="mileage" type="number" min="0" step="1" placeholder="125000" required />
+              </label>
+              <label>
+                Fecha de ingreso
+                <input id="intakeDate" type="date" required />
+              </label>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Trabajo realizado</h3>
+            <div class="form-grid wide">
+              <label>
+                Trabajos realizados
+                <textarea id="workDone" rows="4" placeholder="Detalle de diagnóstico, mantención o reparación" required></textarea>
+              </label>
+              <label>
+                Observaciones
+                <textarea id="observations" rows="4" placeholder="Notas técnicas, repuestos, recomendaciones o pendientes"></textarea>
+              </label>
+              <label>
+                Próxima mantención sugerida
+                <textarea id="nextMaintenance" rows="3" placeholder="Ej: Cambio de aceite en 10.000 km o revisión de frenos"></textarea>
+              </label>
+              <label>
+                Fecha sugerida
+                <input id="nextMaintenanceDate" type="date" />
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="button primary" type="submit" id="saveRecord">Guardar registro</button>
+            <p id="formStatus" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="panel list-panel" id="vehiculos">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Consulta</p>
+              <h2>Vehículos registrados</h2>
+            </div>
+          </div>
+
+          <form class="search-bar" id="searchForm">
+            <label for="searchPatent">Buscar por patente</label>
+            <div>
+              <input id="searchPatent" type="search" placeholder="Ingresa una patente" />
+              <button class="button secondary" type="submit">Buscar</button>
+            </div>
+          </form>
+
+          <div class="vehicle-list" id="vehicleList"></div>
+        </div>
+
+        <section class="panel detail-panel" aria-live="polite">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Ficha individual</p>
+              <h2 id="detailTitle">Selecciona un vehículo</h2>
+            </div>
+          </div>
+          <div id="vehicleDetail" class="empty-state">
+            <p>Busca o selecciona una patente para ver datos del cliente, vehículo e historial de trabajos.</p>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel upcoming-panel" id="mantenciones">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Seguimiento</p>
+            <h2>Próximas mantenciones</h2>
+          </div>
+        </div>
+        <div id="upcomingList" class="upcoming-list"></div>
+      </section>
+    </main>
+
+    <dialog id="confirmDialog" class="confirm-dialog">
+      <form method="dialog">
+        <h2 id="confirmTitle">Confirmar acción</h2>
+        <p id="confirmText">Esta acción no se puede deshacer.</p>
+        <div>
+          <button class="button ghost" value="cancel">Cancelar</button>
+          <button class="button danger" value="confirm">Eliminar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
