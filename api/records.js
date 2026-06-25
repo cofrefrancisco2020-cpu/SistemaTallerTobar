@@ -1,3 +1,7 @@
+const crypto = require("crypto");
+
+const AUTH_COOKIE = "tobar_session";
+
 let cachedSql = null;
 let schemaReady = false;
 
@@ -42,6 +46,43 @@ function sendJson(response, status, body) {
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.end(JSON.stringify(body));
+}
+
+function authIsConfigured() {
+  return Boolean(process.env.TALLER_USER && process.env.TALLER_PASSWORD);
+}
+
+function parseCookies(request) {
+  const raw = request.headers.cookie || "";
+  return Object.fromEntries(
+    raw
+      .split(";")
+      .map((item) => item.trim().split("="))
+      .filter(([key, value]) => key && value)
+  );
+}
+
+function sign(value) {
+  return crypto.createHmac("sha256", process.env.TALLER_PASSWORD).update(value).digest("base64url");
+}
+
+function verifyToken(token) {
+  if (!authIsConfigured()) return true;
+  if (!token) return false;
+
+  const [payload, signature] = token.split(".");
+  if (!payload || !signature || sign(payload) !== signature) return false;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return data.user === process.env.TALLER_USER && Number(data.expiresAt) > Date.now();
+  } catch (error) {
+    return false;
+  }
+}
+
+function isAuthorized(request) {
+  return verifyToken(parseCookies(request)[AUTH_COOKIE]);
 }
 
 async function readBody(request) {
@@ -104,6 +145,11 @@ module.exports = async function handler(request, response) {
   if (request.method === "OPTIONS") {
     response.statusCode = 204;
     response.end();
+    return;
+  }
+
+  if (!isAuthorized(request)) {
+    sendJson(response, 401, { error: "Acceso no autorizado.", authRequired: true });
     return;
   }
 
