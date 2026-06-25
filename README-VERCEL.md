@@ -34,6 +34,8 @@ El sistema interno está protegido con autenticación básica si configuras esta
 - `TALLER_USER`
 - `TALLER_PASSWORD`
 
+El archivo que activa esta protección es `middleware.js`. Debe estar en la raíz del repositorio, al mismo nivel que `index.html`.
+
 La protección aplica a todo el sistema:
 
 - `/`

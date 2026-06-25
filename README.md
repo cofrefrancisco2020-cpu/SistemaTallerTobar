@@ -15,7 +15,7 @@ No necesitas subir la carpeta de la página pública.
 - `app.js`: lógica del sistema.
 - `assets/`: logo del taller.
 - `api/records.js`: API para guardar y leer registros desde base de datos.
-- `middleware.mjs`: protección con usuario y contraseña en Vercel.
+- `middleware.js`: protección con usuario y contraseña en Vercel.
 - `package.json`: dependencias mínimas para Vercel.
 - `README-VERCEL.md`: pasos para conectar Vercel y Neon.
 
