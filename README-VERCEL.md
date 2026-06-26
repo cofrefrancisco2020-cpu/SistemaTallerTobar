@@ -27,6 +27,27 @@ Pasos:
 
 La tabla se crea sola la primera vez que el sistema llama a `/api/records`.
 
+## Fotografías por revisión
+
+La versión 2 permite subir fotos en cada registro de trabajo.
+
+Las fotos no se guardan en Neon. Se guardan en Vercel Blob y Neon guarda solo los enlaces.
+
+Variable necesaria:
+
+- `BLOB_READ_WRITE_TOKEN`
+
+Pasos:
+
+1. Entra al proyecto en Vercel.
+2. Ve a Storage.
+3. Elige Blob.
+4. Crea o conecta un Blob Store al proyecto.
+5. Confirma que Vercel agregó `BLOB_READ_WRITE_TOKEN` en Environment Variables.
+6. Haz Redeploy.
+
+El navegador comprime las fotos antes de subirlas para usar menos espacio.
+
 ## Protección del sistema interno
 
 El sistema interno muestra una pantalla de ingreso si configuras estas variables en Vercel:
@@ -44,6 +65,8 @@ La protección se aplica a los registros del sistema:
 ## Peso estimado
 
 Los registros del taller son texto y pesan muy poco. Miles de registros normalmente ocupan pocos MB. Las imágenes del sistema quedan en `assets/` para reemplazarlas fácilmente.
+
+Las fotos de revisiones ocupan más espacio, pero esta versión las reduce antes de subirlas. La recomendación es usar fotos de evidencia, no fotos originales pesadas.
 
 ## Sobre guardar datos
 

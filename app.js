@@ -1,6 +1,7 @@
 const STORAGE_KEY = "historial-taller-tobar:v1";
 const API_ENDPOINT = "/api/records";
 const AUTH_ENDPOINT = "/api/auth";
+const PHOTOS_ENDPOINT = "/api/photos";
 
 const state = {
   records: [],
@@ -9,6 +10,9 @@ const state = {
   storageMode: "checking",
   authRequired: false,
   appStarted: false,
+  formPhotos: [],
+  pendingPhotos: [],
+  photosToDelete: [],
 };
 
 const els = {
@@ -40,6 +44,7 @@ const els = {
   confirmText: document.querySelector("#confirmText"),
   storageModeLabel: document.querySelector("#storageModeLabel"),
   storageModeText: document.querySelector("#storageModeText"),
+  photoPreview: document.querySelector("#photoPreview"),
 };
 
 const fields = {
@@ -56,6 +61,7 @@ const fields = {
   observations: document.querySelector("#observations"),
   nextMaintenance: document.querySelector("#nextMaintenance"),
   nextMaintenanceDate: document.querySelector("#nextMaintenanceDate"),
+  photoFiles: document.querySelector("#photoFiles"),
 };
 
 // Repository layer: this is the only place that knows whether data is stored in an API or localStorage.
@@ -317,6 +323,217 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizePhotos(photos = []) {
+  return photos
+    .filter((photo) => photo?.url)
+    .map((photo) => ({
+      id: photo.id || createId(),
+      url: photo.url,
+      pathname: photo.pathname || "",
+      name: photo.name || "foto-revision.jpg",
+      size: Number(photo.size || 0),
+      contentType: photo.contentType || "image/jpeg",
+      uploadedAt: photo.uploadedAt || new Date().toISOString(),
+    }));
+}
+
+function clearPendingPhotos() {
+  state.pendingPhotos.forEach((photo) => {
+    if (photo.previewUrl) URL.revokeObjectURL(photo.previewUrl);
+  });
+  state.pendingPhotos = [];
+  if (fields.photoFiles) fields.photoFiles.value = "";
+}
+
+function resetPhotoState(photos = []) {
+  clearPendingPhotos();
+  state.formPhotos = normalizePhotos(photos);
+  state.photosToDelete = [];
+  renderPhotoPreview();
+}
+
+function renderPhotoPreview() {
+  if (!els.photoPreview) return;
+
+  const existingTiles = state.formPhotos.map((photo) => renderPhotoTile(photo, "existing", photo.url));
+  const pendingTiles = state.pendingPhotos.map((photo) => renderPhotoTile(photo, "pending", photo.previewUrl));
+  const tiles = [...existingTiles, ...pendingTiles];
+
+  els.photoPreview.innerHTML = tiles.length ? tiles.join("") : "";
+}
+
+function renderPhotoTile(photo, kind, src) {
+  return `
+    <article class="photo-tile">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(photo.name || "Foto de revisión")}" loading="lazy" />
+      <button type="button" data-action="remove-form-photo" data-kind="${kind}" data-id="${escapeHtml(photo.id)}" aria-label="Quitar foto">×</button>
+      <span>${escapeHtml(photo.name || "Foto de revisión")}</span>
+    </article>
+  `;
+}
+
+function removeFormPhoto(kind, id) {
+  if (kind === "pending") {
+    const photo = state.pendingPhotos.find((item) => item.id === id);
+    if (photo?.previewUrl) URL.revokeObjectURL(photo.previewUrl);
+    state.pendingPhotos = state.pendingPhotos.filter((item) => item.id !== id);
+  }
+
+  if (kind === "existing") {
+    const photo = state.formPhotos.find((item) => item.id === id);
+    if (photo) state.photosToDelete.push(photo);
+    state.formPhotos = state.formPhotos.filter((item) => item.id !== id);
+  }
+
+  renderPhotoPreview();
+}
+
+function loadImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer una de las fotos."));
+    };
+    image.src = url;
+  });
+}
+
+async function compressImage(file) {
+  const image = await loadImage(file);
+  const maxSize = 1600;
+  const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * ratio));
+  const height = Math.max(1, Math.round(image.height * ratio));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, width, height);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("No se pudo comprimir una de las fotos."));
+          return;
+        }
+        resolve(blob);
+      },
+      "image/jpeg",
+      0.78
+    );
+  });
+}
+
+async function handlePhotoSelection(event) {
+  const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+  if (!files.length) return;
+
+  els.formStatus.textContent = "Preparando fotos...";
+
+  try {
+    for (const file of files) {
+      const blob = await compressImage(file);
+      state.pendingPhotos.push({
+        id: createId(),
+        name: file.name.replace(/\.[^.]+$/, ".jpg"),
+        size: blob.size,
+        contentType: "image/jpeg",
+        blob,
+        previewUrl: URL.createObjectURL(blob),
+      });
+    }
+
+    renderPhotoPreview();
+    els.formStatus.textContent = "";
+  } catch (error) {
+    els.formStatus.textContent = error.message;
+  } finally {
+    fields.photoFiles.value = "";
+  }
+}
+
+async function uploadPendingPhotos(recordId) {
+  if (!state.pendingPhotos.length) return [];
+  if (!recordsRepository.apiAvailable) {
+    throw new Error("Para guardar fotos, despliega la versión 2 en Vercel con Vercel Blob activo.");
+  }
+
+  const uploaded = [];
+
+  for (const photo of state.pendingPhotos) {
+    const response = await fetch(PHOTOS_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": photo.contentType,
+        "X-Record-Id": encodeURIComponent(recordId),
+        "X-File-Name": encodeURIComponent(photo.name),
+      },
+      credentials: "same-origin",
+      body: photo.blob,
+    });
+    const payload = await safeJson(response);
+
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error("Debes ingresar nuevamente.");
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || "No se pudo subir una foto.");
+    }
+
+    uploaded.push(payload.photo);
+  }
+
+  clearPendingPhotos();
+  return normalizePhotos(uploaded);
+}
+
+async function deleteStoredPhotos(photos = []) {
+  const urls = photos.map((photo) => photo?.url).filter(Boolean);
+  if (!urls.length || !recordsRepository.apiAvailable) return;
+
+  await Promise.allSettled(
+    urls.map((url) =>
+      fetch(PHOTOS_ENDPOINT, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ url }),
+      })
+    )
+  );
+}
+
+function renderPhotoGrid(photos = []) {
+  const items = normalizePhotos(photos);
+  if (!items.length) return "";
+
+  return `
+    <div class="photo-grid">
+      ${items
+        .map(
+          (photo) => `
+            <article class="photo-tile">
+              <a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener">
+                <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.name || "Foto de revisión")}" loading="lazy" />
+              </a>
+              <span>${escapeHtml(photo.name || "Foto de revisión")}</span>
+            </article>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function getFormData() {
   const patentNormalized = normalizePatent(fields.patent.value);
 
@@ -336,6 +553,7 @@ function getFormData() {
     observations: fields.observations.value.trim(),
     nextMaintenance: fields.nextMaintenance.value.trim(),
     nextMaintenanceDate: fields.nextMaintenanceDate.value,
+    photos: normalizePhotos(state.formPhotos),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -356,6 +574,7 @@ function setFormData(record) {
   fields.observations.value = record.observations || "";
   fields.nextMaintenance.value = record.nextMaintenance || "";
   fields.nextMaintenanceDate.value = record.nextMaintenanceDate || "";
+  resetPhotoState(record.photos || []);
   els.formTitle.textContent = record.id ? "Editar registro existente" : "Registrar vehículo o trabajo";
 }
 
@@ -476,6 +695,7 @@ function renderDetail() {
 
   const latest = group.latest;
   const vehicleName = [latest.brandName, latest.modelName, latest.vehicleYear].filter(Boolean).join(" ") || "Vehículo sin detalle";
+  const photoCount = group.records.reduce((total, record) => total + normalizePhotos(record.photos).length, 0);
   els.detailTitle.textContent = latest.patentDisplay || group.patent;
   els.vehicleDetail.className = "";
   els.vehicleDetail.innerHTML = `
@@ -495,6 +715,10 @@ function renderDetail() {
       <div class="data-box">
         <span>Último kilometraje</span>
         <strong>${formatNumber(latest.mileage)} km</strong>
+      </div>
+      <div class="data-box">
+        <span>Fotos</span>
+        <strong>${formatNumber(photoCount)}</strong>
       </div>
     </div>
     <div class="history-list">
@@ -520,6 +744,7 @@ function renderHistoryCard(record) {
         <p><strong>Trabajos:</strong> ${escapeHtml(record.workDone || "Sin detalle")}</p>
         <p><strong>Observaciones:</strong> ${escapeHtml(record.observations || "Sin observaciones")}</p>
         <p><strong>Próxima mantención:</strong> ${escapeHtml(record.nextMaintenance || "Sin sugerencia")}${record.nextMaintenanceDate ? ` · ${formatDate(record.nextMaintenanceDate)}` : ""}</p>
+        ${renderPhotoGrid(record.photos)}
       </div>
     </article>
   `;
@@ -572,19 +797,25 @@ async function saveRecord(event) {
     return;
   }
 
-  const existingIndex = state.records.findIndex((record) => record.id === data.id);
-  if (existingIndex >= 0) {
-    data.createdAt = state.records[existingIndex].createdAt;
-    state.records[existingIndex] = data;
-    var statusMessage = "Registro actualizado.";
-  } else {
-    state.records.unshift(data);
-    var statusMessage = "Registro guardado.";
-  }
-
   try {
-    els.formStatus.textContent = "Guardando...";
+    const existingIndex = state.records.findIndex((record) => record.id === data.id);
+    const uploadedPhotos = await uploadPendingPhotos(data.id);
+    state.formPhotos = normalizePhotos([...state.formPhotos, ...uploadedPhotos]);
+    data.photos = normalizePhotos(state.formPhotos);
+
+    if (existingIndex >= 0) {
+      data.createdAt = state.records[existingIndex].createdAt;
+      state.records[existingIndex] = data;
+      var statusMessage = "Registro actualizado.";
+    } else {
+      state.records.unshift(data);
+      var statusMessage = "Registro guardado.";
+    }
+
+    els.formStatus.textContent = uploadedPhotos.length ? "Guardando registro con fotos..." : "Guardando...";
     await recordsRepository.upsert(data, state.records);
+    await deleteStoredPhotos(state.photosToDelete);
+    state.photosToDelete = [];
     state.selectedPatent = data.patentNormalized;
     clearForm();
     els.formStatus.textContent = statusMessage;
@@ -594,6 +825,7 @@ async function saveRecord(event) {
   } catch (error) {
     els.formStatus.textContent = error.message;
     state.records = await recordsRepository.load();
+    data.photos = normalizePhotos(state.formPhotos);
     render();
   }
 }
@@ -643,6 +875,7 @@ function deleteRecord(id) {
       }
       try {
         await recordsRepository.deleteRecord(id, state.records);
+        await deleteStoredPhotos(record.photos);
         render();
       } catch (error) {
         state.records = previousRecords;
@@ -662,10 +895,12 @@ function deleteVehicle(patent) {
     `Se eliminarán todos los registros asociados a la patente ${group.latest.patentDisplay}.`,
     async () => {
       const previousRecords = [...state.records];
+      const photosToDelete = group.records.flatMap((record) => normalizePhotos(record.photos));
       state.records = state.records.filter((item) => item.patentNormalized !== patent);
       if (state.selectedPatent === patent) state.selectedPatent = "";
       try {
         await recordsRepository.deleteVehicle(patent, state.records);
+        await deleteStoredPhotos(photosToDelete);
         render();
       } catch (error) {
         state.records = previousRecords;
@@ -701,6 +936,11 @@ function handleDelegatedAction(event) {
   const action = button.dataset.action;
   const patent = button.dataset.patent;
   const id = button.dataset.id;
+
+  if (action === "remove-form-photo") {
+    removeFormPhoto(button.dataset.kind, id);
+    return;
+  }
 
   if (action === "view") {
     state.selectedPatent = patent;
@@ -742,6 +982,7 @@ async function startApp() {
       state.search = event.target.value.trim();
       renderVehicleList();
     });
+    fields.photoFiles.addEventListener("change", handlePhotoSelection);
     document.addEventListener("click", handleDelegatedAction);
     state.appStarted = true;
   }

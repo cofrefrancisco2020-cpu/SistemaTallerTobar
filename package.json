@@ -6,7 +6,8 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@vercel/functions": "^2.2.13",
-    "@neondatabase/serverless": "^1.0.2"
+    "@neondatabase/serverless": "^1.0.2",
+    "@vercel/blob": "^2.4.1",
+    "@vercel/functions": "^2.2.13"
   }
 }
