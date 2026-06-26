@@ -28,4 +28,4 @@ En local funciona en modo prueba con `localStorage`.
 
 En Vercel, con `DATABASE_URL` configurada, guarda en Neon Postgres para que los datos se vean desde cualquier dispositivo.
 
-Las fotos se guardan en Vercel Blob con `BLOB_READ_WRITE_TOKEN`. Neon solo guarda los enlaces de cada foto para mantener liviana la base de datos.
+Las fotos se guardan en Vercel Blob. Neon solo guarda los enlaces de cada foto para mantener liviana la base de datos.

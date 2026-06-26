@@ -33,9 +33,10 @@ La versión 2 permite subir fotos en cada registro de trabajo.
 
 Las fotos no se guardan en Neon. Se guardan en Vercel Blob y Neon guarda solo los enlaces.
 
-Variable necesaria:
+Variables de Blob:
 
-- `BLOB_READ_WRITE_TOKEN`
+- `BLOB_STORE_ID`: Vercel la crea al conectar Blob al proyecto.
+- `BLOB_READ_WRITE_TOKEN`: puede aparecer en algunos flujos de Vercel, pero no siempre es necesario si Blob queda conectado al proyecto.
 
 Pasos:
 
@@ -43,7 +44,7 @@ Pasos:
 2. Ve a Storage.
 3. Elige Blob.
 4. Crea o conecta un Blob Store al proyecto.
-5. Confirma que Vercel agregó `BLOB_READ_WRITE_TOKEN` en Environment Variables.
+5. Confirma que Vercel agregó `BLOB_STORE_ID` en Environment Variables.
 6. Haz Redeploy.
 
 El navegador comprime las fotos antes de subirlas para usar menos espacio.
