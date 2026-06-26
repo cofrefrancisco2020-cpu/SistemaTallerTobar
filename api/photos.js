@@ -77,6 +77,20 @@ function cleanName(value) {
     .slice(0, 80);
 }
 
+function getBlobOptions(extra = {}) {
+  const options = { ...extra };
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    options.token = process.env.BLOB_READ_WRITE_TOKEN;
+  }
+
+  if (process.env.BLOB_STORE_ID) {
+    options.storeId = process.env.BLOB_STORE_ID;
+  }
+
+  return options;
+}
+
 module.exports = async function handler(request, response) {
   if (request.method === "OPTIONS") {
     response.statusCode = 204;
@@ -89,7 +103,7 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
     sendJson(response, 503, { error: "Falta conectar Vercel Blob al proyecto." });
     return;
   }
@@ -116,11 +130,11 @@ module.exports = async function handler(request, response) {
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const random = crypto.randomBytes(4).toString("hex");
       const pathname = `tobar/revisiones/${recordId}/${stamp}-${random}-${fileName}`;
-      const blob = await put(pathname, body, {
+      const blob = await put(pathname, body, getBlobOptions({
         access: "public",
         contentType,
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
+        addRandomSuffix: false,
+      }));
 
       sendJson(response, 200, {
         photo: {
@@ -143,7 +157,7 @@ module.exports = async function handler(request, response) {
         return;
       }
 
-      await del(body.url, { token: process.env.BLOB_READ_WRITE_TOKEN });
+      await del(body.url, getBlobOptions());
       sendJson(response, 200, { ok: true });
       return;
     }
