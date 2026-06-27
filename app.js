@@ -323,6 +323,43 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeWhatsAppPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("56")) return digits;
+  if (digits.startsWith("0")) return normalizeWhatsAppPhone(digits.slice(1));
+  if (digits.length === 9 && digits.startsWith("9")) return `56${digits}`;
+  if (digits.length === 8) return `569${digits}`;
+  return digits;
+}
+
+function buildMaintenanceWhatsAppMessage(record, vehicleName) {
+  const clientName = record.clientName || "estimado cliente";
+  const patent = record.patentDisplay || record.patentNormalized || "patente registrada";
+  const dateText = record.nextMaintenanceDate ? `para el ${formatDate(record.nextMaintenanceDate)}` : "próximamente";
+  const recommendation = record.nextMaintenance || "realizar la mantención sugerida por el taller";
+
+  return [
+    `Hola ${clientName}, junto con saludar, te contactamos de Taller Tobar.`,
+    "",
+    `Te comentamos que la próxima mantención sugerida para tu ${vehicleName} (${patent}) está indicada ${dateText}.`,
+    "",
+    `Recomendación del taller: ${recommendation}.`,
+    "",
+    "Si deseas agendar o tienes alguna duda, respóndenos por este medio.",
+    "",
+    "Saludos, Taller Tobar.",
+  ].join("\n");
+}
+
+function buildMaintenanceWhatsAppUrl(record, vehicleName) {
+  const phone = normalizeWhatsAppPhone(record.clientPhone);
+  if (!phone) return "";
+
+  const message = buildMaintenanceWhatsAppMessage(record, vehicleName);
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
 function normalizePhotos(photos = []) {
   return photos
     .filter((photo) => photo?.url)
@@ -767,6 +804,10 @@ function renderUpcoming() {
   els.upcomingList.innerHTML = records
     .map((record) => {
       const vehicleName = [record.brandName, record.modelName].filter(Boolean).join(" ") || "Vehículo";
+      const whatsappUrl = buildMaintenanceWhatsAppUrl(record, vehicleName);
+      const whatsappButton = whatsappUrl
+        ? `<a class="mini-button whatsapp" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener">WhatsApp</a>`
+        : `<span class="mini-button disabled">Sin WhatsApp</span>`;
       return `
         <article class="maintenance-card">
           <div>
@@ -774,7 +815,10 @@ function renderUpcoming() {
             <h3>${escapeHtml(vehicleName)} · ${formatDate(record.nextMaintenanceDate)}</h3>
             <p>${escapeHtml(record.nextMaintenance || "Mantención sugerida sin detalle")}</p>
           </div>
-          <button class="mini-button" type="button" data-action="view" data-patent="${escapeHtml(record.patentNormalized)}">Ver ficha</button>
+          <div class="maintenance-actions">
+            <button class="mini-button" type="button" data-action="view" data-patent="${escapeHtml(record.patentNormalized)}">Ver ficha</button>
+            ${whatsappButton}
+          </div>
         </article>
       `;
     })

@@ -505,7 +505,16 @@ textarea:focus {
   gap: 8px;
 }
 
+.maintenance-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 128px;
+}
+
 .mini-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 34px;
   padding: 8px 10px;
   color: var(--white);
@@ -514,6 +523,8 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.07);
   font-size: 0.84rem;
   font-weight: 900;
+  text-align: center;
+  text-decoration: none;
 }
 
 .mini-button:hover {
@@ -522,6 +533,22 @@ textarea:focus {
 
 .mini-button.danger {
   color: #fecaca;
+}
+
+.mini-button.whatsapp {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: rgba(34, 197, 94, 0.18);
+  color: #dcfce7;
+}
+
+.mini-button.whatsapp:hover {
+  border-color: var(--green);
+}
+
+.mini-button.disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+  opacity: 0.72;
 }
 
 .detail-summary {
