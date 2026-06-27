@@ -337,18 +337,18 @@ function buildMaintenanceWhatsAppMessage(record, vehicleName) {
   const clientName = record.clientName || "estimado cliente";
   const patent = record.patentDisplay || record.patentNormalized || "patente registrada";
   const dateText = record.nextMaintenanceDate ? `para el ${formatDate(record.nextMaintenanceDate)}` : "próximamente";
-  const recommendation = record.nextMaintenance || "realizar la mantención sugerida por el taller";
+  const recommendation = record.nextMaintenance || "realizar la mantención sugerida por Mecánica Tobar";
 
   return [
-    `Hola ${clientName}, junto con saludar, te contactamos de Taller Tobar.`,
+    `Hola ${clientName}, junto con saludar, te contactamos de Mecánica Tobar.`,
     "",
     `Te comentamos que la próxima mantención sugerida para tu ${vehicleName} (${patent}) está indicada ${dateText}.`,
     "",
-    `Recomendación del taller: ${recommendation}.`,
+    `Recomendación de Mecánica Tobar: ${recommendation}.`,
     "",
     "Si deseas agendar o tienes alguna duda, respóndenos por este medio.",
     "",
-    "Saludos, Taller Tobar.",
+    "Saludos, Mecánica Tobar.",
   ].join("\n");
 }
 
